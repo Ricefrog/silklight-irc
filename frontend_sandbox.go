@@ -7,5 +7,4 @@ import (
 func main() {
 	frontend.ClearScreen()
 	frontend.Start()
-
 }
