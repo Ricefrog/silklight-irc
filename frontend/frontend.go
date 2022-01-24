@@ -8,8 +8,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-var initialModel = mainModel{}
-
 func fillerMessages() string {
 	var b strings.Builder
 
@@ -29,14 +27,18 @@ func ClearScreen() {
 	}
 }
 
-func Start() {
+func Start(initialModel *MainModel) *tea.Program {
 	initialModel.selectMode = true
-	initialModel.messages = fillerMessages()
-	initialModel.initViewport(10, 10)
+	//initialModel.messages = fillerMessages()
+	initialModel.initViewport(97, 10)
 	initialModel.initTextBox()
 
-	p := tea.NewProgram(initialModel)
-	if err := p.Start(); err != nil {
-		log.Fatal(err)
-	}
+	p := tea.NewProgram(*initialModel)
+	go func() {
+		if err := p.Start(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	return p
 }

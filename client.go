@@ -6,14 +6,12 @@ import (
 	"log"
 	"net"
 	"net/textproto"
+	"os"
+	"silklight/frontend"
 	"silklight/irc"
+	"silklight/utils"
 	"strings"
 	"time"
-)
-
-const (
-	libera     = "irc.libera.chat:6697"
-	devdungeon = "irc.devdungeon.com:6667"
 )
 
 func main() {
@@ -39,23 +37,33 @@ func main() {
 
 	time.Sleep(2 * time.Second)
 	irc.JoinChannel(conn, "#bots")
+
+	m := &frontend.MainModel{}
+	frontend.ClearScreen()
+	p := frontend.Start(m)
+
+	quit := false
 	go func() {
-		time.Sleep(5 * time.Second)
+		time.Sleep(30 * time.Second)
 		fmt.Println("Closing connection...")
 		irc.SendMessage(conn, "#bots", "BOT: that's all folks")
+		p.Quit()
 		irc.Disconnect(conn)
+		os.Exit(0)
 	}()
 
 	tp := textproto.NewReader(bufio.NewReader(conn))
-	for {
+	for !quit {
 		status, err := tp.ReadLine()
 		if err != nil {
 			log.Fatal(err)
 		}
 		if strings.HasPrefix(status, "PING") {
 			irc.Pong(conn)
+			continue
 		}
+		status = utils.PrependTimestamp(status)
 
-		fmt.Println(status)
+		p.Send(frontend.AppendMsg(status + "\n"))
 	}
 }

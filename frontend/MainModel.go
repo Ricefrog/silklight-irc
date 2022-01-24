@@ -10,23 +10,34 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var borderStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder())
-
-type mainModel struct {
+type MainModel struct {
 	viewPort       viewport.Model
 	textBox        textinput.Model
 	messages       string
 	currentChannel string
 	state          int // value specifies what is currently highlighted
 	selectMode     bool
+	width          int
+	height         int
 }
 
-func (m mainModel) Init() tea.Cmd {
+var borderStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder())
+
+// Send to the update function to add more content to the viewport.
+type AppendMsg string
+
+func (m MainModel) appendMsgCmd(message string) tea.Cmd {
+	return func() tea.Msg {
+		return AppendMsg(message)
+	}
+}
+
+func (m MainModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m *mainModel) initTextBox() {
+func (m *MainModel) initTextBox() {
 	ti := textinput.NewModel()
 	ti.CharLimit = 450
 	ti.Width = 97
@@ -34,12 +45,12 @@ func (m *mainModel) initTextBox() {
 	m.textBox = ti
 }
 
-func (m *mainModel) initViewport(width, height int) {
+func (m *MainModel) initViewport(width, height int) {
 	m.viewPort = viewport.New(width, height)
 	m.viewPort.SetContent(m.messages)
 }
 
-func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd
@@ -96,16 +107,23 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		/*
-			case tea.WindowSizeMsg:
-				//msg.Width, msg.Height
-				// set viewport and textbox width
-				//ClearScreen()
-				//m.viewPort.Height = msg.Height - 3
-				m.viewPort.Width = msg.Width
-				m.textBox.Width = msg.Width
-				//fmt.Fprintf(os.Stderr, "width changed")
-		*/
+	case AppendMsg:
+		var b strings.Builder
+		fmt.Fprintf(&b, "%s%s", m.messages, msg)
+		m.messages = b.String()
+		m.viewPort.SetContent(m.messages)
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+
+		m.viewPort.Width = msg.Width - m.viewPort.Style.GetHorizontalFrameSize() - 3
+		//m.viewPort.Width = msg.Width - 3
+		m.textBox.Width = msg.Width
+		m.viewPort.Height = msg.Height - m.viewPort.Style.GetVerticalFrameSize() - 8
+		//m.viewPort.Height = msg.Height - 2 - 4
+
+		m.viewPort.SetContent(m.messages)
+		return m, nil
 	}
 
 	if !m.selectMode {
@@ -122,16 +140,19 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m mainModel) View() string {
+func (m MainModel) View() string {
 	var b strings.Builder
-	vpStyle := borderStyle.Copy()
-	tbStyle := borderStyle.Copy()
+
+	vpStyle := borderStyle.Copy().Width(m.width - 3)
+	tbStyle := borderStyle.Copy().Width(m.width - 3)
+
 	var hlColor lipgloss.Color
 	if m.selectMode {
 		hlColor = lipgloss.Color("6")
 	} else {
 		hlColor = lipgloss.Color("5")
 	}
+
 	switch m.state {
 	case 0:
 		vpStyle = vpStyle.BorderForeground(hlColor)
@@ -139,7 +160,9 @@ func (m mainModel) View() string {
 		tbStyle = tbStyle.BorderForeground(hlColor)
 	}
 
-	fmt.Fprintf(&b, vpStyle.Render(m.viewPort.View())+"\n")
+	m.viewPort.Style = vpStyle
+
+	fmt.Fprintf(&b, m.viewPort.View()+"\n")
 	fmt.Fprintf(&b, tbStyle.Render(m.textBox.View()))
 
 	return b.String()
