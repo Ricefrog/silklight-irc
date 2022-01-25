@@ -4,14 +4,17 @@ import (
 	"fmt"
 	"strings"
 
+	"silklight/frontend/dynamicViewport"
+	"silklight/frontend/utils"
+
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type MainModel struct {
-	viewPort       viewport.Model
+	//viewPort       viewport.Model
+	viewPort       dynamicViewport.Model
 	textBox        textinput.Model
 	messages       string
 	currentChannel string
@@ -24,12 +27,9 @@ type MainModel struct {
 var borderStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder())
 
-// Send to the update function to add more content to the viewport.
-type AppendMsg string
-
 func (m MainModel) appendMsgCmd(message string) tea.Cmd {
 	return func() tea.Msg {
-		return AppendMsg(message)
+		return utils.AppendMsg(message)
 	}
 }
 
@@ -46,7 +46,8 @@ func (m *MainModel) initTextBox() {
 }
 
 func (m *MainModel) initViewport(width, height int) {
-	m.viewPort = viewport.New(width, height)
+	//m.viewPort = viewport.New(width, height)
+	m.viewPort = dynamicViewport.New(width, height)
 	m.viewPort.SetContent(m.messages)
 }
 
@@ -107,22 +108,23 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-	case AppendMsg:
-		var b strings.Builder
-		fmt.Fprintf(&b, "%s%s", m.messages, msg)
-		m.messages = b.String()
-		m.viewPort.SetContent(m.messages)
+	case utils.AppendMsg:
+		/*
+			var b strings.Builder
+			fmt.Fprintf(&b, "%s%s", m.messages, msg)
+			m.messages = b.String()
+			m.viewPort.SetContent(m.messages)
+		*/
+		// cmds = append(cmds, something)
+		m.viewPort, cmd = m.viewPort.Update(msg)
+		return m, cmd
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 
 		m.viewPort.Width = msg.Width - m.viewPort.Style.GetHorizontalFrameSize() - 3
-		//m.viewPort.Width = msg.Width - 3
 		m.textBox.Width = msg.Width
 		m.viewPort.Height = msg.Height - m.viewPort.Style.GetVerticalFrameSize() - 8
-		//m.viewPort.Height = msg.Height - 2 - 4
-
-		m.viewPort.SetContent(m.messages)
 		return m, nil
 	}
 
@@ -140,10 +142,14 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m MainModel) View() string {
+func ViewWithBuilder(s1, s2 string) string {
 	var b strings.Builder
+	fmt.Fprintf(&b, "%s\n%s", s1, s2)
+	return b.String()
+}
 
-	vpStyle := borderStyle.Copy().Width(m.width - 3)
+func (m MainModel) View() string {
+	vpStyle := borderStyle.Copy().Width(m.viewPort.Width).Height(m.viewPort.Height)
 	tbStyle := borderStyle.Copy().Width(m.width - 3)
 
 	var hlColor lipgloss.Color
@@ -160,10 +166,9 @@ func (m MainModel) View() string {
 		tbStyle = tbStyle.BorderForeground(hlColor)
 	}
 
-	m.viewPort.Style = vpStyle
+	vp := vpStyle.Render(m.viewPort.View())
+	tb := tbStyle.Render(m.textBox.View())
 
-	fmt.Fprintf(&b, m.viewPort.View()+"\n")
-	fmt.Fprintf(&b, tbStyle.Render(m.textBox.View()))
-
-	return b.String()
+	//return lipgloss.JoinVertical(lipgloss.Left, vp, tb)
+	return ViewWithBuilder(vp, tb)
 }

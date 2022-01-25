@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"silklight/frontend"
+	futils "silklight/frontend/utils"
 	"silklight/utils"
 	"time"
 )
@@ -16,6 +17,6 @@ func main() {
 	for i := 0; ; i++ {
 		// SEND MESSAGE USING p.Send
 		time.Sleep(time.Second)
-		p.Send(frontend.AppendMsg(utils.PrependTimestamp(fmt.Sprintf("Message %d\n", i))))
+		p.Send(futils.AppendMsg(utils.PrependTimestamp(fmt.Sprintf("Message %d\n", i))))
 	}
 }

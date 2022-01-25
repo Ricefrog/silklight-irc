@@ -8,6 +8,7 @@ import (
 	"net/textproto"
 	"os"
 	"silklight/frontend"
+	futils "silklight/frontend/utils"
 	"silklight/irc"
 	"silklight/utils"
 	"strings"
@@ -44,7 +45,7 @@ func main() {
 
 	quit := false
 	go func() {
-		time.Sleep(30 * time.Second)
+		time.Sleep(120 * time.Second)
 		fmt.Println("Closing connection...")
 		irc.SendMessage(conn, "#bots", "BOT: that's all folks")
 		p.Quit()
@@ -64,6 +65,6 @@ func main() {
 		}
 		status = utils.PrependTimestamp(status)
 
-		p.Send(frontend.AppendMsg(status + "\n"))
+		p.Send(futils.AppendMsg(status + "\n"))
 	}
 }
