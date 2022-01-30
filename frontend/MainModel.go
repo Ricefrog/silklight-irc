@@ -2,10 +2,12 @@ package frontend
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"silklight/frontend/dynamicViewport"
-	"silklight/frontend/utils"
+	futils "silklight/frontend/utils"
+	"silklight/irc"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,11 +19,13 @@ type MainModel struct {
 	viewPort       dynamicViewport.Model
 	textBox        textinput.Model
 	messages       string
-	currentChannel string
+	CurrentChannel string
 	state          int // value specifies what is currently highlighted
 	selectMode     bool
 	width          int
 	height         int
+	Conn           net.Conn
+	ClientName     string
 }
 
 var borderStyle = lipgloss.NewStyle().
@@ -29,7 +33,14 @@ var borderStyle = lipgloss.NewStyle().
 
 func (m MainModel) appendMsgCmd(message string) tea.Cmd {
 	return func() tea.Msg {
-		return utils.AppendMsg(message)
+		return futils.AppendMsg(message)
+	}
+}
+
+func sendMessageCmd(conn net.Conn, channel, message, clientName string) tea.Cmd {
+	return func() tea.Msg {
+		irc.SendMessage(conn, channel, message)
+		return futils.AppendMsg(fmt.Sprintf("<%s> %s", clientName, message))
 	}
 }
 
@@ -90,9 +101,9 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// Send the server a proper QUIT message.
 					return m, tea.Quit
 				case "enter":
-					//typedMsg := m.textBox.Value()
-					//fmt.Fprintf(os.Stderr, "MESSAGE ENTERED: %s\n", typedMsg)
+					message := m.textBox.Value()
 					m.textBox.SetValue("")
+					return m, sendMessageCmd(m.Conn, m.CurrentChannel, message, m.ClientName)
 				case "esc":
 					m.selectMode = true
 					m.textBox.Blur()
@@ -108,14 +119,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-	case utils.AppendMsg:
-		/*
-			var b strings.Builder
-			fmt.Fprintf(&b, "%s%s", m.messages, msg)
-			m.messages = b.String()
-			m.viewPort.SetContent(m.messages)
-		*/
-		// cmds = append(cmds, something)
+	case futils.AppendMsg:
 		m.viewPort, cmd = m.viewPort.Update(msg)
 		return m, cmd
 	case tea.WindowSizeMsg:
@@ -169,6 +173,6 @@ func (m MainModel) View() string {
 	vp := vpStyle.Render(m.viewPort.View())
 	tb := tbStyle.Render(m.textBox.View())
 
-	//return lipgloss.JoinVertical(lipgloss.Left, vp, tb)
-	return ViewWithBuilder(vp, tb)
+	return lipgloss.JoinVertical(lipgloss.Left, vp, tb)
+	//return ViewWithBuilder(vp, tb)
 }

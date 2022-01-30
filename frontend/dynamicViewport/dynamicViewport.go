@@ -5,7 +5,8 @@ package dynamicViewport
 
 import (
 	"math"
-	"silklight/frontend/utils"
+	futils "silklight/frontend/utils"
+	"silklight/utils"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -350,8 +351,8 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 				cmd = ViewDown(m, lines)
 			}
 		}
-	case utils.AppendMsg:
-		m.AppendLine(string(msg))
+	case futils.AppendMsg:
+		m.AppendLine(utils.PrependTimestamp(string(msg)))
 	}
 
 	return m, cmd

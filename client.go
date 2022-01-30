@@ -34,14 +34,14 @@ func main() {
 		}
 	}
 
+	m := &frontend.MainModel{Conn: conn, CurrentChannel: "#bots", ClientName: "silklight"}
+	frontend.ClearScreen()
+	p := frontend.Start(m)
+
 	irc.Login(conn, "silklight")
 
 	time.Sleep(2 * time.Second)
 	irc.JoinChannel(conn, "#bots")
-
-	m := &frontend.MainModel{}
-	frontend.ClearScreen()
-	p := frontend.Start(m)
 
 	quit := false
 	go func() {
@@ -59,11 +59,15 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		if strings.HasPrefix(status, "PING") {
 			irc.Pong(conn)
 			continue
 		}
-		status = utils.PrependTimestamp(status)
+
+		if utils.IsPRIVMSG(status) {
+			status = utils.CleanPRIVMSG(status)
+		}
 
 		p.Send(futils.AppendMsg(status + "\n"))
 	}
