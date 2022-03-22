@@ -16,7 +16,7 @@ import (
 
 type MainModel struct {
 	//viewPort       viewport.Model
-	viewPort       dynamicViewport.Model
+	ViewPort       dynamicViewport.Model
 	textBox        textinput.Model
 	messages       string
 	CurrentChannel string
@@ -39,6 +39,11 @@ func (m MainModel) appendMsgCmd(message string) tea.Cmd {
 
 func sendMessageCmd(conn net.Conn, channel, message, clientName string) tea.Cmd {
 	return func() tea.Msg {
+		if strings.HasPrefix(message, "#raw ") {
+			message = message[5:]
+			irc.SendString(conn, message)
+			return futils.AppendMsg(fmt.Sprintf("<%s> Sent raw msg: %s", clientName, message))
+		}
 		irc.SendMessage(conn, channel, message)
 		return futils.AppendMsg(fmt.Sprintf("<%s> %s", clientName, message))
 	}
@@ -49,17 +54,18 @@ func (m MainModel) Init() tea.Cmd {
 }
 
 func (m *MainModel) initTextBox() {
-	ti := textinput.NewModel()
+	ti := textinput.New()
 	ti.CharLimit = 450
 	ti.Width = 97
+	ti.Prompt = fmt.Sprintf("%s >> ", m.ClientName)
 
 	m.textBox = ti
 }
 
 func (m *MainModel) initViewport(width, height int) {
 	//m.viewPort = viewport.New(width, height)
-	m.viewPort = dynamicViewport.New(width, height)
-	m.viewPort.SetContent(m.messages)
+	m.ViewPort = dynamicViewport.New(width, height)
+	m.ViewPort.SetContent(m.messages)
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -77,6 +83,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "ctrl+c":
 				// "Are you sure you want to quit?" message.
 				// Send the server a proper QUIT message.
+				futils.Quit = true
 				return m, tea.Quit
 			case "k", "up":
 				if m.state > 0 {
@@ -94,7 +101,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		} else {
 			switch m.state {
-			case 1:
+			case 1: // textbox
 				switch msg.String() {
 				case "ctrl+c":
 					// "Are you sure you want to quit?" message.
@@ -108,7 +115,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.selectMode = true
 					m.textBox.Blur()
 				}
-			case 0:
+			case 0: // viewport
 				switch msg.String() {
 				case "ctrl+c":
 					// "Are you sure you want to quit?" message.
@@ -116,26 +123,39 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, tea.Quit
 				case "esc":
 					m.selectMode = true
+				case "g":
+					if m.ViewPort.PrevKey == "g" {
+						m.ViewPort.GotoTop()
+						m.ViewPort.PrevKey = ""
+					} else {
+						m.ViewPort.PrevKey = "g"
+					}
+				case "G":
+					m.ViewPort.GotoBottom()
 				}
 			}
 		}
 	case futils.AppendMsg:
-		m.viewPort, cmd = m.viewPort.Update(msg)
+		m.ViewPort, cmd = m.ViewPort.Update(msg)
+		return m, cmd
+	case futils.AppendMsgToTextBox:
+		m.textBox.SetValue(string(msg) + fmt.Sprintf(" Width: %d\n", m.ViewPort.Width))
 		return m, cmd
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 
-		m.viewPort.Width = msg.Width - m.viewPort.Style.GetHorizontalFrameSize() - 3
+		m.ViewPort.Width = msg.Width - m.ViewPort.Style.GetHorizontalFrameSize() - 3
 		m.textBox.Width = msg.Width
-		m.viewPort.Height = msg.Height - m.viewPort.Style.GetVerticalFrameSize() - 8
-		return m, nil
+		m.ViewPort.Height = msg.Height - m.ViewPort.Style.GetVerticalFrameSize() - 8
+		m.ViewPort, cmd = m.ViewPort.Update(msg)
+		return m, cmd
 	}
 
 	if !m.selectMode {
 		switch m.state {
 		case 0:
-			m.viewPort, cmd = m.viewPort.Update(msg)
+			m.ViewPort, cmd = m.ViewPort.Update(msg)
 			cmds = append(cmds, cmd)
 		case 1:
 			m.textBox, cmd = m.textBox.Update(msg)
@@ -153,7 +173,7 @@ func ViewWithBuilder(s1, s2 string) string {
 }
 
 func (m MainModel) View() string {
-	vpStyle := borderStyle.Copy().Width(m.viewPort.Width).Height(m.viewPort.Height)
+	vpStyle := borderStyle.Copy().Width(m.ViewPort.Width).Height(m.ViewPort.Height)
 	tbStyle := borderStyle.Copy().Width(m.width - 3)
 
 	var hlColor lipgloss.Color
@@ -170,7 +190,7 @@ func (m MainModel) View() string {
 		tbStyle = tbStyle.BorderForeground(hlColor)
 	}
 
-	vp := vpStyle.Render(m.viewPort.View())
+	vp := vpStyle.Render(m.ViewPort.View())
 	tb := tbStyle.Render(m.textBox.View())
 
 	return lipgloss.JoinVertical(lipgloss.Left, vp, tb)

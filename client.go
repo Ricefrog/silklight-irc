@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 	"net/textproto"
-	"os"
+	"os/exec"
 	"silklight/frontend"
 	futils "silklight/frontend/utils"
 	"silklight/irc"
@@ -15,9 +15,12 @@ import (
 	"time"
 )
 
+var Quit bool = false
+
 func main() {
 	fmt.Println("Starting silklight-irc...")
 	lainchan := irc.ServerInfo{"irc.lainchan.org", 6697}
+	clientName := "silklight"
 
 	usingSSL := true
 	var conn net.Conn
@@ -34,30 +37,34 @@ func main() {
 		}
 	}
 
-	m := &frontend.MainModel{Conn: conn, CurrentChannel: "#bots", ClientName: "silklight"}
+	m := &frontend.MainModel{Conn: conn, CurrentChannel: "#bots", ClientName: clientName}
 	frontend.ClearScreen()
 	p := frontend.Start(m)
 
-	irc.Login(conn, "silklight")
+	irc.Login(conn, clientName)
 
 	time.Sleep(2 * time.Second)
 	irc.JoinChannel(conn, "#bots")
 
-	quit := false
-	go func() {
-		time.Sleep(120 * time.Second)
-		fmt.Println("Closing connection...")
-		irc.SendMessage(conn, "#bots", "BOT: that's all folks")
-		p.Quit()
-		irc.Disconnect(conn)
-		os.Exit(0)
-	}()
+	/*
+		go func() {
+			time.Sleep(120 * time.Second)
+			fmt.Println("Closing connection...")
+			irc.SendMessage(conn, "#bots", "BOT: that's all folks")
+			p.Quit()
+			irc.Disconnect(conn)
+			os.Exit(0)
+		}()
+	*/
 
 	tp := textproto.NewReader(bufio.NewReader(conn))
-	for !quit {
+	for !futils.Quit {
 		status, err := tp.ReadLine()
 		if err != nil {
-			log.Fatal(err)
+			conn.Close()
+			log.Print("connection closed")
+			p.Quit()
+			break
 		}
 
 		if strings.HasPrefix(status, "PING") {
@@ -65,10 +72,10 @@ func main() {
 			continue
 		}
 
-		if utils.IsPRIVMSG(status) {
-			status = utils.CleanPRIVMSG(status)
-		}
+		status = utils.CleanMessage(status, clientName, lainchan)
 
 		p.Send(futils.AppendMsg(status + "\n"))
 	}
+	exec.Command("reset").Run()
+	log.Print("silklight-irc quit.")
 }

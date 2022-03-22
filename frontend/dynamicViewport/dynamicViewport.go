@@ -23,6 +23,73 @@ func New(width, height int) (m Model) {
 	return m
 }
 
+// For keeping track of line-breaks
+type LineInfo struct {
+	literal string
+	lines   []string
+	length  int
+}
+
+func (li *LineInfo) format(width int) {
+	formatted := make([]string, 0, len(li.literal)/width+1)
+	buffer := "           ╬ "
+	line := li.literal
+
+	pastFirst := false
+	for len(line) > width-1 {
+		formatted = append(formatted, line[:width-1])
+		line = line[width-1:]
+		if !pastFirst {
+			pastFirst = true
+			width -= len(buffer)
+		}
+	}
+	if len(line) > 0 {
+		formatted = append(formatted, line)
+	}
+
+	li.lines = formatted
+	for i := 1; i < len(li.lines); i++ {
+		li.lines[i] = buffer + li.lines[i]
+	}
+	li.length = len(li.lines)
+}
+
+func length(lines []LineInfo) int {
+	num := 0
+	for _, li := range lines {
+		num += li.length
+	}
+	return num
+}
+
+func subset(lines []LineInfo, start, end int) []string {
+	ret := make([]string, 0, end-start)
+	startLi := 0
+	index := 0
+
+	for i, li := range lines {
+		index += li.length
+		if index > start {
+			startLi = i
+			index -= li.length
+			break
+		}
+	}
+
+	for i := startLi; ; i++ {
+		for _, line := range lines[i].lines {
+			ret = append(ret, line)
+			index++
+			if index == end {
+				goto Loop
+			}
+		}
+	}
+Loop:
+	return ret
+}
+
 // Model is the Bubble Tea model for this viewport element.
 type Model struct {
 	Width  int
@@ -57,8 +124,42 @@ type Model struct {
 	// which is usually via the alternate screen buffer.
 	HighPerformanceRendering bool
 
+	PrevKey string
+
 	initialized bool
-	lines       []string
+	lines       []LineInfo
+}
+
+func (m *Model) NumLines() int {
+	return len(m.lines)
+}
+
+func (m *Model) NumLinesLiteral() int {
+	return length(m.lines)
+}
+
+func (m *Model) PrintLiterals() string {
+	ret := ""
+	for _, lineInfo := range m.lines {
+		if lineInfo.literal != "" {
+			ret += lineInfo.literal
+		} else {
+			ret += "Empty literal.\n"
+		}
+	}
+	return ret
+}
+
+func (m *Model) PrintLines() string {
+	ret := ""
+	for _, lineInfo := range m.lines {
+		if len(lineInfo.lines) > 0 {
+			ret += strings.Join(lineInfo.lines, "\n")
+		} else {
+			ret += "No lines!\n"
+		}
+	}
+	return ret
 }
 
 func (m *Model) setInitialValues() {
@@ -106,7 +207,14 @@ func (m Model) ScrollPercent() float64 {
 // Sync command should also be called.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
-	m.lines = strings.Split(s, "\n")
+	lines := strings.Split(s, "\n")
+	for _, line := range lines {
+		li := LineInfo{
+			literal: line,
+		}
+		li.format(m.Width)
+		m.lines = append(m.lines, li)
+	}
 
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
@@ -117,7 +225,11 @@ func (m *Model) AppendLine(s string) {
 	wasAtBottom := m.AtBottom()
 	s = strings.ReplaceAll(s, "\r\n", "") // normalize line ending
 	s = strings.ReplaceAll(s, "\n", "")   // Do not need newlines
-	m.lines = append(m.lines, s)
+	li := LineInfo{
+		literal: s,
+	}
+	li.format(m.Width)
+	m.lines = append(m.lines, li)
 
 	if m.YOffset > len(m.lines)-1 || wasAtBottom {
 		m.GotoBottom()
@@ -127,16 +239,27 @@ func (m *Model) AppendLine(s string) {
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	return max(0, len(m.lines)-m.Height)
+	return max(0, length(m.lines)-m.Height)
 }
 
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
-func (m Model) visibleLines() (lines []string) {
+/*
+func (m Model) origVisibleLines() (lines []string) {
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
 		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
 		lines = m.lines[top:bottom]
+	}
+	return lines
+}
+*/
+
+func (m Model) visibleLines() (lines []string) {
+	if length(m.lines) > 0 {
+		top := max(0, m.YOffset)
+		bottom := clamp(m.YOffset+m.Height, top, length(m.lines))
+		lines = subset(m.lines, top, bottom)
 	}
 	return lines
 }
@@ -353,6 +476,10 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 		}
 	case futils.AppendMsg:
 		m.AppendLine(utils.PrependTimestamp(string(msg)))
+	case tea.WindowSizeMsg:
+		for i := 0; i < len(m.lines); i++ {
+			m.lines[i].format(m.Width)
+		}
 	}
 
 	return m, cmd

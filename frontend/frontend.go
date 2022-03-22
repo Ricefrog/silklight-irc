@@ -30,7 +30,7 @@ func ClearScreen() {
 func Start(initialModel *MainModel) *tea.Program {
 	initialModel.selectMode = true
 	//initialModel.messages = fillerMessages()
-	initialModel.initViewport(0, 0)
+	initialModel.initViewport(10, 10)
 	initialModel.initTextBox()
 
 	p := tea.NewProgram(*initialModel)
