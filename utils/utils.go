@@ -6,12 +6,31 @@ import (
 	"silklight/irc"
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
 )
+
+var bracketStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
+var nickStyle = lipgloss.NewStyle().Italic(true)
+var Separator = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Render("╬")
+var BorderStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder())
+
+func RenderPRIVMSG(nick, msg string) string {
+	nickColor := lipgloss.Color("2")
+	nick = fmt.Sprintf(
+		"%s%s%s",
+		bracketStyle.Render("<"),
+		nickStyle.Foreground(nickColor).Render(nick),
+		bracketStyle.Render(">"),
+	)
+	return fmt.Sprintf("%s %s", nick, msg)
+}
 
 func PrependTimestamp(str string) string {
 	var b strings.Builder
 	now := time.Now()
-	fmt.Fprintf(&b, "[%s] ╬ %s", now.Format("15:04:05"), str)
+	fmt.Fprintf(&b, "[%s] %s %s", now.Format("15:04:05"), Separator, str)
 	return b.String()
 }
 
@@ -25,8 +44,7 @@ func IsPRIVMSG(raw string) bool {
 // Convert raw IRC PRIVMSG into something more palatable
 func CleanPRIVMSG(raw string) string {
 	matches := privmsg_exp.FindStringSubmatch(raw)
-	ret := fmt.Sprintf("<%s> %s", matches[1], matches[2])
-	return ret
+	return RenderPRIVMSG(matches[1], matches[2])
 }
 
 // removes prologye for messsages received when first joining server.

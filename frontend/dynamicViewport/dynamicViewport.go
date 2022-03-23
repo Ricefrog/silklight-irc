@@ -4,6 +4,7 @@
 package dynamicViewport
 
 import (
+	"fmt"
 	"math"
 	futils "silklight/frontend/utils"
 	"silklight/utils"
@@ -32,7 +33,7 @@ type LineInfo struct {
 
 func (li *LineInfo) format(width int) {
 	formatted := make([]string, 0, len(li.literal)/width+1)
-	buffer := "           ╬ "
+	buffer := fmt.Sprintf("           %s ", utils.Separator)
 	line := li.literal
 
 	pastFirst := false

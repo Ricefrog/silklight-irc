@@ -8,6 +8,7 @@ import (
 	"silklight/frontend/dynamicViewport"
 	futils "silklight/frontend/utils"
 	"silklight/irc"
+	"silklight/utils"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -28,9 +29,6 @@ type MainModel struct {
 	ClientName     string
 }
 
-var borderStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder())
-
 func (m MainModel) appendMsgCmd(message string) tea.Cmd {
 	return func() tea.Msg {
 		return futils.AppendMsg(message)
@@ -45,7 +43,7 @@ func sendMessageCmd(conn net.Conn, channel, message, clientName string) tea.Cmd 
 			return futils.AppendMsg(fmt.Sprintf("<%s> Sent raw msg: %s", clientName, message))
 		}
 		irc.SendMessage(conn, channel, message)
-		return futils.AppendMsg(fmt.Sprintf("<%s> %s", clientName, message))
+		return futils.AppendMsg(utils.RenderPRIVMSG(clientName, message))
 	}
 }
 
@@ -173,13 +171,15 @@ func ViewWithBuilder(s1, s2 string) string {
 }
 
 func (m MainModel) View() string {
-	vpStyle := borderStyle.Copy().Width(m.ViewPort.Width).Height(m.ViewPort.Height)
-	tbStyle := borderStyle.Copy().Width(m.width - 3)
+	vpStyle := utils.BorderStyle.Copy().Width(m.ViewPort.Width).Height(m.ViewPort.Height)
+	tbStyle := utils.BorderStyle.Copy().Width(m.width - 3)
 
 	var hlColor lipgloss.Color
 	if m.selectMode {
+		//hlColor = lipgloss.Color("14")
 		hlColor = lipgloss.Color("6")
 	} else {
+		//hlColor = lipgloss.Color("13")
 		hlColor = lipgloss.Color("5")
 	}
 
