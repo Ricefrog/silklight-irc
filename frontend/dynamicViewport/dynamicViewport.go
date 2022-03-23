@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	futils "silklight/frontend/utils"
+	"silklight/styles"
 	"silklight/utils"
 	"strings"
 
@@ -33,7 +34,7 @@ type LineInfo struct {
 
 func (li *LineInfo) format(width int) {
 	formatted := make([]string, 0, len(li.literal)/width+1)
-	buffer := fmt.Sprintf("           %s ", utils.Separator)
+	buffer := fmt.Sprintf("           %s ", styles.Separator)
 	line := li.literal
 
 	pastFirst := false

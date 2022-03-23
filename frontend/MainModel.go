@@ -8,6 +8,7 @@ import (
 	"silklight/frontend/dynamicViewport"
 	futils "silklight/frontend/utils"
 	"silklight/irc"
+	"silklight/styles"
 	"silklight/utils"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -37,9 +38,8 @@ func (m MainModel) appendMsgCmd(message string) tea.Cmd {
 
 func sendMessageCmd(conn net.Conn, channel, message, clientName string) tea.Cmd {
 	return func() tea.Msg {
-		if strings.HasPrefix(message, "#raw ") {
-			message = message[5:]
-			irc.SendString(conn, message)
+		if strings.HasPrefix(message, "/") {
+			irc.SendString(conn, message[1:])
 			return futils.AppendMsg(fmt.Sprintf("<%s> Sent raw msg: %s", clientName, message))
 		}
 		irc.SendMessage(conn, channel, message)
@@ -171,8 +171,8 @@ func ViewWithBuilder(s1, s2 string) string {
 }
 
 func (m MainModel) View() string {
-	vpStyle := utils.BorderStyle.Copy().Width(m.ViewPort.Width).Height(m.ViewPort.Height)
-	tbStyle := utils.BorderStyle.Copy().Width(m.width - 3)
+	vpStyle := styles.BorderStyle.Copy().Width(m.ViewPort.Width).Height(m.ViewPort.Height)
+	tbStyle := styles.BorderStyle.Copy().Width(m.width - 3)
 
 	var hlColor lipgloss.Color
 	if m.selectMode {

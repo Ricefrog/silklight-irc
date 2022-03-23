@@ -6,6 +6,7 @@ import (
 	"os"
 	"silklight/frontend"
 	futils "silklight/frontend/utils"
+	"silklight/styles"
 	"time"
 )
 
@@ -27,7 +28,7 @@ func main() {
 	for i := 0; ; i++ {
 		// SEND MESSAGE USING p.Send
 		time.Sleep(time.Second / 5.0)
-		p.Send(futils.AppendMsg(message))
+		p.Send(futils.AppendMsg(styles.NickToStyle(message).Render(message)))
 		p.Send(futils.AppendMsgToTextBox(fmt.Sprintf("Msg length: %d", len(message))))
 		message += "$"
 		file.WriteString(fmt.Sprintf("lines: %d\n", m.ViewPort.NumLines()))

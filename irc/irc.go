@@ -4,7 +4,55 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"silklight/styles"
+
+	"github.com/charmbracelet/lipgloss"
 )
+
+type OpStatus byte
+
+const (
+	None OpStatus = iota
+	Voice
+	HalfOp
+	Op
+)
+
+type Nick struct {
+	Status  OpStatus
+	Display string
+}
+
+// self indicates that this is the client user's nick
+func InitNick(raw string, self bool) *Nick {
+	ret := &Nick{}
+	special := raw[0]
+	var symbol string
+	var nickStyle lipgloss.Style
+	switch special {
+	case '+':
+		ret.Status = Voice
+		symbol = "+"
+	case '%':
+		ret.Status = HalfOp
+		symbol = "%"
+	case '@':
+		ret.Status = Op
+		symbol = "@"
+	default:
+		ret.Status = None
+	}
+
+	if self {
+		nickStyle = styles.NickStyleSelf
+	} else {
+		nickStyle = styles.NickToStyle(raw[1:])
+	}
+
+	symbol = styles.RedStyle.Render(symbol)
+	ret.Display = fmt.Sprintf("%s%s", symbol, nickStyle.Render(raw[1:]))
+	return ret
+}
 
 type ServerInfo struct {
 	Domain string

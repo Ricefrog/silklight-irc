@@ -4,25 +4,18 @@ import (
 	"fmt"
 	"regexp"
 	"silklight/irc"
+	"silklight/styles"
 	"strings"
 	"time"
-
-	"github.com/charmbracelet/lipgloss"
 )
 
-var bracketStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
-var nickStyle = lipgloss.NewStyle().Italic(true)
-var Separator = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Render("╬")
-var BorderStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder())
-
 func RenderPRIVMSG(nick, msg string) string {
-	nickColor := lipgloss.Color("2")
+	tempStyle := styles.NickToStyle(nick)
 	nick = fmt.Sprintf(
 		"%s%s%s",
-		bracketStyle.Render("<"),
-		nickStyle.Foreground(nickColor).Render(nick),
-		bracketStyle.Render(">"),
+		styles.MagentaStyle.Render("<"),
+		tempStyle.Render(nick),
+		styles.MagentaStyle.Render(">"),
 	)
 	return fmt.Sprintf("%s %s", nick, msg)
 }
@@ -30,7 +23,7 @@ func RenderPRIVMSG(nick, msg string) string {
 func PrependTimestamp(str string) string {
 	var b strings.Builder
 	now := time.Now()
-	fmt.Fprintf(&b, "[%s] %s %s", now.Format("15:04:05"), Separator, str)
+	fmt.Fprintf(&b, "[%s] %s %s", now.Format("15:04:05"), styles.Separator, str)
 	return b.String()
 }
 

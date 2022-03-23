@@ -19,19 +19,19 @@ var Quit bool = false
 
 func main() {
 	fmt.Println("Starting silklight-irc...")
-	lainchan := irc.ServerInfo{"irc.lainchan.org", 6697}
+	server := irc.ServerInfo{"irc.lainchan.org", 6697}
 	clientName := "silklight"
 
 	usingSSL := true
 	var conn net.Conn
 	var err error
 	if usingSSL {
-		conn, err = irc.ConnectSSL(lainchan)
+		conn, err = irc.ConnectSSL(server)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		conn, err = irc.Connect(lainchan)
+		conn, err = irc.Connect(server)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -44,7 +44,7 @@ func main() {
 	irc.Login(conn, clientName)
 
 	time.Sleep(2 * time.Second)
-	irc.JoinChannel(conn, "#bots")
+	//irc.JoinChannel(conn, "#bots")
 
 	/*
 		go func() {
@@ -72,7 +72,7 @@ func main() {
 			continue
 		}
 
-		status = utils.CleanMessage(status, clientName, lainchan)
+		status = utils.CleanMessage(status, clientName, server)
 
 		p.Send(futils.AppendMsg(status + "\n"))
 	}
